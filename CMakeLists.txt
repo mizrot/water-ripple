@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(ripple_gl C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -O2")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -O2 -lm")
 
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
