@@ -398,32 +398,55 @@ int main(void) {
 
     int iPrev = 0, iCurr = 1, iNext = 2;
     double start = glfwGetTime(), last = start;
+    const double fixed_step = 1.0 / 120.0;
+    const int max_substeps = 8;
+    double sim_accumulator = 0.0;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        double now = glfwGetTime(); double dt = now - last; if (dt <= 0) dt = 1e-6; last = now; float t = (float)(now - start);
+        double now = glfwGetTime();
+        double dt = now - last;
+        if (dt < 0.0) dt = 0.0;
+        if (dt > 0.25) dt = 0.25;
+        last = now;
+        sim_accumulator += dt;
+        float t = (float)(now - start);
 
-        // SIMULATION PASS
-        glUseProgram(sim_prog);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbos[iNext]);
-        glViewport(0, 0, sim_w, sim_h);
-
-        // Bind textures: prev->unit0, curr->unit1, depth->unit2
-        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, sim_tex[iPrev]); glUniform1i(sim_uPrev, 0);
-        glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, sim_tex[iCurr]); glUniform1i(sim_uCurr, 1);
-
-        glUniform2f(sim_uRes, (float)sim_w, (float)sim_h);
-        int ww, hh; glfwGetWindowSize(window, &ww, &hh);
+        int ww, hh;
+        glfwGetWindowSize(window, &ww, &hh);
         float nx = (float)(mouse_x / ww), ny = 1.0f - (float)(mouse_y / hh);
-        glUniform2f(sim_uMouse, nx, ny);
-        glUniform1i(sim_uDrop, mouse_down ? 1 : 0);
-        glUniform1f(sim_uDamp, 0.996f);
 
-        glBindVertexArray(vao); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        int substeps = 0;
+        while (sim_accumulator >= fixed_step && substeps < max_substeps) {
+            // SIMULATION PASS
+            glUseProgram(sim_prog);
+            glBindFramebuffer(GL_FRAMEBUFFER, fbos[iNext]);
+            glViewport(0, 0, sim_w, sim_h);
 
-        // rotate ping-pong indices
-        int old = iPrev; iPrev = iCurr; iCurr = iNext; iNext = old;
+            glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, sim_tex[iPrev]); glUniform1i(sim_uPrev, 0);
+            glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, sim_tex[iCurr]); glUniform1i(sim_uCurr, 1);
+
+            glUniform2f(sim_uRes, (float)sim_w, (float)sim_h);
+            glUniform2f(sim_uMouse, nx, ny);
+            glUniform1i(sim_uDrop, mouse_down ? 1 : 0);
+            glUniform1f(sim_uDamp, 0.998f);
+
+            glBindVertexArray(vao);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            // rotate ping-pong indices
+            int old = iPrev;
+            iPrev = iCurr;
+            iCurr = iNext;
+            iNext = old;
+
+            sim_accumulator -= fixed_step;
+            substeps++;
+        }
+        if (substeps == max_substeps) {
+            sim_accumulator = 0.0;
+        }
 
         // DISPLAY PASS
         glUseProgram(disp_prog);
