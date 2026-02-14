@@ -398,7 +398,7 @@ int main(void) {
 
     int iPrev = 0, iCurr = 1, iNext = 2;
     double start = glfwGetTime(), last = start;
-    const double fixed_step = 1.0 / 120.0;
+    const double fixed_step = 1.0 /  500.0;
     const int max_substeps = 8;
     double sim_accumulator = 0.0;
 
